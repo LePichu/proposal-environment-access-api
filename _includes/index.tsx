@@ -218,9 +218,12 @@ export default ({ title, children }: Props) => (
           box-shadow: 0 12px 40px rgba(0,0,0,0.2);
         }
 
-        /* Mobile: dock spans full width, pinned to top initially.
-           JS takes over after load — these are just the pre-JS defaults
-           so there's no 380px-wide flash on a phone. */
+        /* Collapsed state — only show the label bar */
+        .yt-dock.collapsed iframe {
+          height: 0 !important;
+        }
+
+        /* Mobile: dock spans full width, pinned to top initially. */
         @media (max-width: 600px) {
           .yt-dock {
             top: 0;
@@ -232,7 +235,9 @@ export default ({ title, children }: Props) => (
             border-right: none;
           }
           .yt-dock iframe { height: 180px; }
+          .yt-dock.collapsed iframe { height: 0 !important; }
         }
+
         .yt-dock-label {
           padding: 0.5rem 0.9rem;
           font-size: 0.82rem;
@@ -246,18 +251,41 @@ export default ({ title, children }: Props) => (
           touch-action: none;
           -webkit-user-select: none;
         }
+        .yt-dock.collapsed .yt-dock-label {
+          border-bottom: none;
+        }
         .yt-dock-label:active { cursor: grabbing; }
         .yt-dock-label .drag-hint {
           margin-left: auto;
           font-size: 0.7rem;
           opacity: 0.4;
         }
+
+        /* Hide/show toggle button */
+        .yt-dock-toggle {
+          margin-left: 0.5rem;
+          font-size: 0.75rem;
+          color: var(--muted);
+          background: none;
+          border: 1px solid var(--border);
+          border-radius: 3px;
+          padding: 0.1em 0.45em;
+          cursor: pointer;
+          font-family: var(--font);
+          line-height: 1.5;
+          flex-shrink: 0;
+          opacity: 0.6;
+          transition: opacity 0.1s;
+        }
+        .yt-dock-toggle:hover { opacity: 1; }
+
         .yt-dock iframe {
           display: block;
           width: 100%;
           height: 213px;
           border: none;
           pointer-events: none;
+          transition: height 0.2s ease;
         }
         .yt-dock.dragging iframe { pointer-events: none; }
 
@@ -297,8 +325,10 @@ export default ({ title, children }: Props) => (
 				<div class="yt-dock-label" id="yt-handle">
 					🎮 focus mode
 					<span class="drag-hint">drag to snap</span>
+					<button class="yt-dock-toggle" id="yt-toggle" title="Toggle video">hide</button>
 				</div>
 				<iframe
+					id="yt-iframe"
 					src="https://www.youtube.com/embed/lGlFs6lEcoU?autoplay=1&mute=1&loop=1&playlist=lGlFs6lEcoU&controls=0&modestbranding=1&rel=0"
 					allow="autoplay; encrypted-media"
 					allowfullscreen
@@ -329,16 +359,32 @@ export default ({ title, children }: Props) => (
             h.prepend(a);
           });
 
-          /* ─────────────────────────────────────────
+          /* ── Hide / show toggle ── */
+          const toggleBtn = document.getElementById('yt-toggle');
+          const dockEl    = document.getElementById('yt-dock');
+          let collapsed   = false;
+
+          toggleBtn.addEventListener('click', e => {
+            // Don't let the click bubble up to the drag handle
+            e.stopPropagation();
+            collapsed = !collapsed;
+            dockEl.classList.toggle('collapsed', collapsed);
+            toggleBtn.textContent = collapsed ? 'show' : 'hide';
+          });
+
+          /* Stop mousedown/touchstart on the toggle from starting a drag */
+          toggleBtn.addEventListener('mousedown',  e => e.stopPropagation());
+          toggleBtn.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
+
+          /* -────────────────────────────────────────
              Dock drag + snap
-          ───────────────────────────────────────── */
+          ─────────────────────────────────────────*/
           const GAP = 20;
           const CORNER_SNAP_THRESHOLD = 160;
 
-          const dock   = document.getElementById('yt-dock');
+          const dock   = dockEl;
           const handle = document.getElementById('yt-handle');
 
-          // We only use tl/tr/bl/br on desktop; tl/bl on mobile (top/bottom bars).
           const ind = {
             tl: document.getElementById('snap-tl'),
             tr: document.getElementById('snap-tr'),
@@ -354,13 +400,10 @@ export default ({ title, children }: Props) => (
 
           /* ── Position helpers ── */
           function setPos(x, y) {
-            // On mobile x is always 0 and width is always 100vw — enforced here.
             dock.style.top    = y + 'px';
             dock.style.left   = isMobile() ? '0' : x + 'px';
             dock.style.right  = 'auto';
             dock.style.bottom = 'auto';
-            // Don't touch width via inline style on mobile — CSS handles it.
-            // On desktop clear any inline width so CSS 380px applies.
             dock.style.width  = '';
           }
 
@@ -372,8 +415,6 @@ export default ({ title, children }: Props) => (
             br: () => ({ x: vw()-dockW()-GAP, y: vh()-dockH()-GAP }),
           };
 
-          // Returns the corner key whose screen-corner is closest to the
-          // matching dock-corner, or null if none within threshold.
           function nearestCorner(dx, dy) {
             const dc = {
               tl: [dx,        dy       ],
@@ -395,7 +436,6 @@ export default ({ title, children }: Props) => (
             return bestD < CORNER_SNAP_THRESHOLD ? best : null;
           }
 
-          // Always returns the closest corner (no threshold) — used on drop.
           function closestCorner(dx, dy) {
             const dc = {
               tl: [dx,        dy       ],
@@ -426,10 +466,8 @@ export default ({ title, children }: Props) => (
           /* ── Snap indicators ── */
           function showIndicators() {
             if (isMobile()) {
-              // Hide desktop corner indicators
               ind.tr.style.display = 'none';
               ind.br.style.display = 'none';
-              // Size top/bottom bars
               const h = dockH();
               ind.tl.style.cssText = \`display:block;width:100%;height:\${h}px;left:0;top:0;border-radius:0;border-left:none;border-right:none;\`;
               ind.bl.style.cssText = \`display:block;width:100%;height:\${h}px;left:0;top:\${vh()-h}px;border-radius:0;border-left:none;border-right:none;\`;
@@ -455,7 +493,6 @@ export default ({ title, children }: Props) => (
           }
 
           function highlightIndicator(active) {
-            // active = key string or null
             if (isMobile()) {
               ind.tl.style.background = active === 'top'    ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.04)';
               ind.bl.style.background = active === 'bottom' ? 'rgba(0,0,0,0.1)' : 'rgba(0,0,0,0.04)';
@@ -481,7 +518,7 @@ export default ({ title, children }: Props) => (
           /* ── Init ── */
           window.addEventListener('load', () => {
             if (isMobile()) {
-              setPos(0, 0); // dock to top on mobile
+              setPos(0, 0);
             } else {
               const r = dock.getBoundingClientRect();
               setPos(r.left, r.top);
@@ -529,7 +566,6 @@ export default ({ title, children }: Props) => (
             if (activeSnap) {
               snapTo(activeSnap);
             } else {
-              // Drop without hitting a snap zone — commit to nearest anyway
               const r = dock.getBoundingClientRect();
               if (isMobile()) {
                 snapTo(mobileZone(r.top));
@@ -545,7 +581,7 @@ export default ({ title, children }: Props) => (
           document.addEventListener('mousemove', e => onDragMove(e.clientX, e.clientY));
           document.addEventListener('mouseup', onDragEnd);
 
-          /* touch — non-passive so we can preventDefault to block page scroll */
+          /* touch */
           handle.addEventListener('touchstart', e => {
             e.preventDefault();
             onDragStart(e.touches[0].clientX, e.touches[0].clientY);
