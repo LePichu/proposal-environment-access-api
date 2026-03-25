@@ -32,5 +32,3 @@ jobs:
           project: "tc55-proposal-from-ohio"
           entrypoint: "https://deno.land/std@0.188.0/http/file_server.ts"
           root: "_site"
-          
-          

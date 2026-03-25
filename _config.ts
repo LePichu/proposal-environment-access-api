@@ -2,6 +2,7 @@
 import lume from "lume/mod.ts"
 import code_highlight from "lume/plugins/code_highlight.ts"
 import jsx from "lume/plugins/jsx.ts"
+// deno-lint-ignore no-unversioned-import
 import type { HLJSApi, Language } from "npm:highlight.js"
 
 const webIdl = (hljs: HLJSApi): Language => ({
@@ -19,7 +20,6 @@ const webIdl = (hljs: HLJSApi): Language => ({
 		hljs.QUOTE_STRING_MODE,
 		hljs.NUMBER_MODE,
 		{
-			// [Exposed=*, Extended=Attributes]
 			className: "meta",
 			begin: /\[/,
 			end: /\]/,
@@ -36,12 +36,10 @@ const webIdl = (hljs: HLJSApi): Language => ({
 			],
 		},
 		{
-			// interface/dictionary names (PascalCase)
 			className: "title",
 			begin: /\b[A-Z][A-Za-z0-9_]*\b/,
 		},
 		{
-			// readonly, attribute, getter, setter, inherit, static, stringifier, iterable
 			className: "keyword",
 			begin:
 				/\b(readonly|attribute|getter|setter|deleter|inherit|static|stringifier|iterable|maplike|setlike|required|optional|async)\b/,

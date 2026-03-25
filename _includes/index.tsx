@@ -1,6 +1,4 @@
-// _includes/index.tsx
-
-export const title = "TC55 · Environment API Proposal"
+export const title = "TC55 · Environment Access API Proposal"
 
 interface Props {
 	title: string
@@ -14,17 +12,24 @@ export default ({ title, children }: Props) => (
 			<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 			<title>{title}</title>
 
-			{/* ── OpenGraph ── */}
-			<meta property="og:type"        content="article" />
-			<meta property="og:title"       content={title} />
-			<meta property="og:description" content="A proposal for a first-class Environment API in TC55, enabling portable, runtime-agnostic access to environment variables, parameters, and channels." />
-			<meta property="og:url"         content="https://tc55-proposal-from-ohio.deno.dev" />
-			<meta property="og:site_name"   content="TC55" />
+			<meta property="og:type" content="article" />
+			<meta property="og:title" content={title} />
+			<meta
+				property="og:description"
+				content="A proposal for a first-class Environment Access API in TC55, enabling portable, runtime-agnostic access to environment variables, parameters, and channels."
+			/>
+			<meta
+				property="og:url"
+				content="https://tc55-proposal-from-ohio.deno.dev"
+			/>
+			<meta property="og:site_name" content="TC55" />
 
-			{/* ── Twitter / X Card ── */}
-			<meta name="twitter:card"        content="summary" />
-			<meta name="twitter:title"       content={title} />
-			<meta name="twitter:description" content="A proposal for a first-class Environment API in TC55, enabling portable, runtime-agnostic access to environment variables, parameters, and channels." />
+			<meta name="twitter:card" content="summary" />
+			<meta name="twitter:title" content={title} />
+			<meta
+				name="twitter:description"
+				content="A proposal for a first-class Environment Access API in TC55, enabling portable, runtime-agnostic access to environment variables, parameters, and channels."
+			/>
 			<link
 				rel="stylesheet"
 				href="https://unpkg.com/@highlightjs/cdn-assets@11/styles/stackoverflow-light.min.css"
@@ -73,7 +78,6 @@ export default ({ title, children }: Props) => (
           padding: 2rem 0 4rem;
         }
 
-        /* ── Prose headings ── */
         .prose h2 {
           font-size: 1.55rem;
           font-weight: 800;
@@ -120,7 +124,6 @@ export default ({ title, children }: Props) => (
         .prose h2:hover a.anchor,
         .prose h3:hover a.anchor { opacity: 1; }
 
-        /* ── Prose body ── */
         .prose p { margin-bottom: 0.85rem; font-size: 1.05rem; }
         .prose em { color: var(--muted); font-style: italic; }
         .prose strong { font-weight: 700; }
@@ -195,7 +198,6 @@ export default ({ title, children }: Props) => (
           margin: 2rem 0;
         }
 
-        /* ── YouTube dock ── */
         .yt-dock {
           position: fixed;
           top: 1.5rem;
@@ -218,12 +220,10 @@ export default ({ title, children }: Props) => (
           box-shadow: 0 12px 40px rgba(0,0,0,0.2);
         }
 
-        /* Collapsed state — only show the label bar */
         .yt-dock.collapsed iframe {
           height: 0 !important;
         }
 
-        /* Mobile: dock spans full width, pinned to top initially. */
         @media (max-width: 600px) {
           .yt-dock {
             top: 0;
@@ -261,7 +261,6 @@ export default ({ title, children }: Props) => (
           opacity: 0.4;
         }
 
-        /* Hide/show toggle button */
         .yt-dock-toggle {
           margin-left: 0.5rem;
           font-size: 0.75rem;
@@ -289,7 +288,6 @@ export default ({ title, children }: Props) => (
         }
         .yt-dock.dragging iframe { pointer-events: none; }
 
-        /* snap zone indicators */
         .snap-indicator {
           position: fixed;
           background: rgba(0,0,0,0.06);
@@ -302,7 +300,6 @@ export default ({ title, children }: Props) => (
         }
         .snap-indicator.visible { opacity: 1; }
 
-        /* mobile snap indicators are full-width bars */
         @media (max-width: 600px) {
           .snap-indicator {
             border-radius: 0;
@@ -321,11 +318,18 @@ export default ({ title, children }: Props) => (
 				</main>
 			</div>
 
-			<div class="yt-dock" id="yt-dock">
+			<div class="yt-dock collapsed" id="yt-dock">
 				<div class="yt-dock-label" id="yt-handle">
 					🎮 focus mode
 					<span class="drag-hint">drag to snap</span>
-					<button class="yt-dock-toggle" id="yt-toggle" title="Toggle video">hide</button>
+					<button
+						type="button"
+						class="yt-dock-toggle"
+						id="yt-toggle"
+						title="Toggle video"
+					>
+						show
+					</button>
 				</div>
 				<iframe
 					id="yt-iframe"
@@ -343,7 +347,6 @@ export default ({ title, children }: Props) => (
 			<script
 				dangerouslySetInnerHTML={{
 					__html: `
-          /* ── Anchor injection ── */
           document.querySelectorAll('.prose h2, .prose h3').forEach(h => {
             if (!h.id) {
               h.id = h.textContent
@@ -359,26 +362,20 @@ export default ({ title, children }: Props) => (
             h.prepend(a);
           });
 
-          /* ── Hide / show toggle ── */
           const toggleBtn = document.getElementById('yt-toggle');
           const dockEl    = document.getElementById('yt-dock');
-          let collapsed   = false;
+          let collapsed   = true;
 
           toggleBtn.addEventListener('click', e => {
-            // Don't let the click bubble up to the drag handle
             e.stopPropagation();
             collapsed = !collapsed;
             dockEl.classList.toggle('collapsed', collapsed);
             toggleBtn.textContent = collapsed ? 'show' : 'hide';
           });
 
-          /* Stop mousedown/touchstart on the toggle from starting a drag */
           toggleBtn.addEventListener('mousedown',  e => e.stopPropagation());
           toggleBtn.addEventListener('touchstart', e => e.stopPropagation(), { passive: true });
 
-          /* -────────────────────────────────────────
-             Dock drag + snap
-          ─────────────────────────────────────────*/
           const GAP = 20;
           const CORNER_SNAP_THRESHOLD = 160;
 
@@ -398,7 +395,6 @@ export default ({ title, children }: Props) => (
           const dockW = () => dock.offsetWidth;
           const dockH = () => dock.offsetHeight;
 
-          /* ── Position helpers ── */
           function setPos(x, y) {
             dock.style.top    = y + 'px';
             dock.style.left   = isMobile() ? '0' : x + 'px';
@@ -407,7 +403,6 @@ export default ({ title, children }: Props) => (
             dock.style.width  = '';
           }
 
-          /* ── Corner positions (desktop) ── */
           const corners = {
             tl: () => ({ x: GAP,              y: GAP }),
             tr: () => ({ x: vw()-dockW()-GAP, y: GAP }),
@@ -457,13 +452,11 @@ export default ({ title, children }: Props) => (
             return best;
           }
 
-          /* ── Mobile: top or bottom bar ── */
           function mobileZone(dy) {
             return (dy + dockH() / 2) < vh() / 2 ? 'top' : 'bottom';
           }
           const mobileY = { top: () => 0, bottom: () => vh() - dockH() };
 
-          /* ── Snap indicators ── */
           function showIndicators() {
             if (isMobile()) {
               ind.tr.style.display = 'none';
@@ -503,7 +496,6 @@ export default ({ title, children }: Props) => (
             }
           }
 
-          /* ── Snap to named position ── */
           function snapTo(key) {
             dock.classList.add('snapping');
             if (key === 'top' || key === 'bottom') {
@@ -515,7 +507,6 @@ export default ({ title, children }: Props) => (
             setTimeout(() => dock.classList.remove('snapping'), 200);
           }
 
-          /* ── Init ── */
           window.addEventListener('load', () => {
             if (isMobile()) {
               setPos(0, 0);
@@ -525,7 +516,6 @@ export default ({ title, children }: Props) => (
             }
           });
 
-          /* ── Drag ── */
           let dragging = false, ox = 0, oy = 0, activeSnap = null;
 
           function onDragStart(cx, cy) {
@@ -576,12 +566,10 @@ export default ({ title, children }: Props) => (
             activeSnap = null;
           }
 
-          /* mouse */
           handle.addEventListener('mousedown', e => { e.preventDefault(); onDragStart(e.clientX, e.clientY); });
           document.addEventListener('mousemove', e => onDragMove(e.clientX, e.clientY));
           document.addEventListener('mouseup', onDragEnd);
 
-          /* touch */
           handle.addEventListener('touchstart', e => {
             e.preventDefault();
             onDragStart(e.touches[0].clientX, e.touches[0].clientY);
