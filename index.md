@@ -63,9 +63,9 @@ interface Environment {
 }
 ```
 
-- **`variables`** — Mutable map of environment variable key-value pairs.
-  Entries may be set or deleted to configure the environment for the current
-  run. Access MAY require a permission grant in sandboxed runtimes.
+- **`variables`** — Mutable map of environment variable key-value pairs. Entries
+  may be set or deleted to configure the environment for the current run. Access
+  MAY require a permission grant in sandboxed runtimes.
 - **`parameters`** — Command-line argument strings. `parameters[0]` SHOULD be
   the invocation name.
 - **`channels`** — Read-only map of named I/O streams. Values are either a
@@ -205,8 +205,9 @@ Proposed permission names:
 
 Runtimes may expose these as CLI flags (e.g. `--allow-env`) or declarative
 manifest entries. The intent is a "deny by default" posture on sandboxed
-runtimes — `environment.variables.get(key)` returns `undefined` for disallowed keys, and
-disallowed channels return `undefined` from `environment.channels.get(name)`.
+runtimes — `environment.variables.get(key)` returns `undefined` for disallowed
+keys, and disallowed channels return `undefined` from
+`environment.channels.get(name)`.
 
 ---
 
@@ -227,7 +228,11 @@ For runtimes with WASI support, this API maps naturally onto WASI Preview 2:
 
 1. **Global name:** `environment` vs `process` vs `runtime`? `environment` is
    unambiguous but verbose. `process` has massive Node.js ecosystem gravity.
-2. **Variable format:** Resolved as a mutable `Map<DOMString, DOMString>` for ergonomics and to support runtime mutation (e.g. injecting variables before a subprocess). Note this deviates from the POSIX `KEY=VALUE` string convention — runtimes with non-`KEY=VALUE` entries (e.g. entries without `=`) will need a defined mapping strategy.
+2. **Variable format:** Resolved as a mutable `Map<DOMString, DOMString>` for
+   ergonomics and to support runtime mutation (e.g. injecting variables before a
+   subprocess). Note this deviates from the POSIX `KEY=VALUE` string convention
+   — runtimes with non-`KEY=VALUE` entries (e.g. entries without `=`) will need
+   a defined mapping strategy.
 3. **Channel enumeration:** Should `environment.channels` enumerate all
    available channels, or expose only the three well-known ones with additional
    channels accessible by name only?

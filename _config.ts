@@ -59,10 +59,13 @@ site.use(code_highlight({
 	},
 	theme: {
 		name: "github",
-		cssFile: "/styles.css",
+		cssFile: "/index.css",
 	},
 }))
 
 site.use(jsx())
+
+site.copy("index.css")
+site.copy("index.js")
 
 export default site
