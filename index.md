@@ -26,7 +26,8 @@ Where existing web platform primitives exist (e.g. `ReadableStream`,
 ### Environment Variables
 
 Key-value string pairs made available to the running process by the host OS or
-runtime platform. These are read-only from the perspective of this API.
+runtime platform. Variables may be set or deleted at runtime to configure the
+environment for the current run.
 
 ### Parameters
 
@@ -45,47 +46,32 @@ A **channel** is a named I/O stream. Well-known channels are:
 | `stderr`     | Writable  | Standard error                       |
 
 Additional runtime-defined channels may be present. All channel values are
-instances of `Stream`.
+standard `ReadableStream` or `WritableStream` instances.
 
 ---
 
 ## API
-
-### `Stream` interface
-
-```webidl
-[Exposed=*]
-interface Stream {
-	readonly attribute ReadableStream? readable
-	readonly attribute WritableStream? writable
-}
-```
-
-A `Stream` with no `writable` is a source (read-only). A `Stream` with no
-`readable` is a sink (write-only). Both present means bidirectional.
 
 ### `Environment` interface
 
 ```webidl
 [Exposed=*]
 interface Environment {
-	readonly attribute FrozenArray<DOMString> variables
+	readonly attribute Map<DOMString, DOMString> variables
 	readonly attribute FrozenArray<DOMString> parameters
-	readonly attribute ReadonlyMapLike<DOMString, Stream> channels
-
-	DOMString? get(DOMString key)
+	readonly attribute ReadonlyMap<DOMString, (ReadableStream or WritableStream)> channels
 }
 ```
 
-- **`variables`** — Environment variable strings in `KEY=VALUE` format (POSIX
-  convention). Access MAY require a permission grant in sandboxed runtimes.
+- **`variables`** — Mutable map of environment variable key-value pairs.
+  Entries may be set or deleted to configure the environment for the current
+  run. Access MAY require a permission grant in sandboxed runtimes.
 - **`parameters`** — Command-line argument strings. `parameters[0]` SHOULD be
   the invocation name.
-- **`channels`** — Read-only map of named `Stream` objects. Runtimes MUST
-  provide `"stdin"`, `"stdout"`, and `"stderr"` at minimum, unless the runtime
-  context has no standard I/O.
-- **`get(key)`** — Convenience method to get a specific environment variable by
-  key. Returns `null` if not found.
+- **`channels`** — Read-only map of named I/O streams. Values are either a
+  `ReadableStream` (sources, e.g. `stdin`) or a `WritableStream` (sinks, e.g.
+  `stdout`, `stderr`). Runtimes MUST provide `"stdin"`, `"stdout"`, and
+  `"stderr"` at minimum, unless the runtime context has no standard I/O.
 
 ### Global Exposure
 
@@ -106,14 +92,18 @@ conformant runtimes.
 
 ## Usage Examples
 
-### Reading environment variables
+### Reading and writing environment variables
 
 ```js
-const dbUrl = environment.get("DATABASE_URL")
+const dbUrl = environment.variables.get("DATABASE_URL")
 
-for (const entry of environment.variables) {
-	console.log(entry) // "KEY=VALUE"
+for (const [key, value] of environment.variables) {
+	console.log(`${key}=${value}`)
 }
+
+// Override or inject variables for the current run
+environment.variables.set("LOG_LEVEL", "debug")
+environment.variables.delete("LEGACY_FLAG")
 ```
 
 ### Reading command-line parameters
@@ -122,7 +112,7 @@ for (const entry of environment.variables) {
 const [_invocation, ...args] = environment.parameters
 
 if (args.includes("--help")) {
-	const writer = environment.channels["stdout"].writable.getWriter()
+	const writer = environment.channels.get("stdout").getWriter()
 	await writer.write(new TextEncoder().encode("Usage: my-tool [options]\n"))
 }
 ```
@@ -130,7 +120,7 @@ if (args.includes("--help")) {
 ### Reading from `stdin`
 
 ```js
-const reader = environment.channels["stdin"].readable.getReader()
+const reader = environment.channels.get("stdin").getReader()
 
 while (true) {
 	const { value, done } = await reader.read()
@@ -142,9 +132,9 @@ while (true) {
 ### Writing to a custom runtime channel
 
 ```js
-const audit = environment.channels["audit-log"]
-if (audit?.writable) {
-	const writer = audit.writable.getWriter()
+const audit = environment.channels.get("audit-log")
+if (audit) {
+	const writer = audit.getWriter()
 	await writer.write(
 		new TextEncoder().encode(JSON.stringify({ event: "startup" })),
 	)
@@ -168,7 +158,7 @@ SHOULD omit those entries from `environment.channels` rather than throwing —
 letting portable code guard with optional chaining:
 
 ```js
-environment.channels["stdin"]?.readable
+environment.channels.get("stdin")?.getReader()
 ```
 
 ---
@@ -181,7 +171,7 @@ be forwarded directly to a socket with no glue code:
 
 ```js
 const socket = connect("log-server.internal:9000")
-environment.channels["stdin"].readable.pipeTo(socket.writable)
+environment.channels.get("stdin").pipeTo(socket.writable)
 ```
 
 ---
@@ -200,7 +190,7 @@ const status = await permissions.query({
 })
 
 if (status.state === "granted") {
-	const dbUrl = environment.get("DATABASE_URL")
+	const dbUrl = environment.variables.get("DATABASE_URL")
 }
 ```
 
@@ -208,15 +198,15 @@ Proposed permission names:
 
 | Permission   | Controls                                          |
 | ------------ | ------------------------------------------------- |
-| `"env"`      | `environment.variables` and `environment.get()`   |
+| `"env"`      | `environment.variables`                           |
 | `"args"`     | `environment.parameters`                          |
 | `"stdio"`    | Well-known channels (`stdin`, `stdout`, `stderr`) |
 | `"channels"` | Runtime-defined named channels                    |
 
 Runtimes may expose these as CLI flags (e.g. `--allow-env`) or declarative
 manifest entries. The intent is a "deny by default" posture on sandboxed
-runtimes — `environment.get(key)` returns `null` for disallowed keys, and
-disallowed channels return `undefined` from `environment.channels[name]`.
+runtimes — `environment.variables.get(key)` returns `undefined` for disallowed keys, and
+disallowed channels return `undefined` from `environment.channels.get(name)`.
 
 ---
 
@@ -237,9 +227,7 @@ For runtimes with WASI support, this API maps naturally onto WASI Preview 2:
 
 1. **Global name:** `environment` vs `process` vs `runtime`? `environment` is
    unambiguous but verbose. `process` has massive Node.js ecosystem gravity.
-2. **Variable format:** `FrozenArray<DOMString>` in `KEY=VALUE` format vs a
-   `ReadonlyMap<DOMString, DOMString>`? A map is more ergonomic but deviates
-   from POSIX.
+2. **Variable format:** Resolved as a mutable `Map<DOMString, DOMString>` for ergonomics and to support runtime mutation (e.g. injecting variables before a subprocess). Note this deviates from the POSIX `KEY=VALUE` string convention — runtimes with non-`KEY=VALUE` entries (e.g. entries without `=`) will need a defined mapping strategy.
 3. **Channel enumeration:** Should `environment.channels` enumerate all
    available channels, or expose only the three well-known ones with additional
    channels accessible by name only?
